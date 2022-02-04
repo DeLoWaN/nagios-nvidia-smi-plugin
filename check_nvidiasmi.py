@@ -1,12 +1,16 @@
 #!/usr/bin/env python
 
-import argparse, logging, nagiosplugin, subprocess, xml.etree.ElementTree
+import argparse, logging, nagiosplugin, subprocess, xml.etree.ElementTree, platform
+
+NVIDIA_SMI_PATH_LINUX="/usr/bin/nvidia-smi"
+NVIDIA_SMI_PATH_WINDOWS="C:\\Program Files\\NVIDIA Corporation\\NVSMI\\nvidia-smi.exe"
+
 
 class Utilization(nagiosplugin.Resource):
 
-    def __init__(self, args):
+    def __init__(self, args, nvidia_smi_path):
         self.args = args
-        nvidia_smi_proc = subprocess.Popen(["/usr/bin/nvidia-smi", "-q", "-x", "-i", args.device], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        nvidia_smi_proc = subprocess.Popen([nvidia_smi_path, "-q", "-x", "-i", args.device], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         nvidia_smi_proc_out, nvidia_smi_proc_err = nvidia_smi_proc.communicate()
         if nvidia_smi_proc.returncode > 0:
             raise Exception(nvidia_smi_proc_err)
@@ -52,8 +56,15 @@ def main():
 
     args=argp.parse_args()
 
+    if platform.system() == "Windows":
+        nvidia_smi_path = NVIDIA_SMI_PATH_WINDOWS
+    else:
+        nvidia_smi_path = NVIDIA_SMI_PATH_LINUX
+
+
+
     check = nagiosplugin.Check(
-            Utilization(args),
+            Utilization(args, nvidia_smi_path),
             nagiosplugin.ScalarContext('gpuutil', args.gpu_warning, args.gpu_critical),
             nagiosplugin.ScalarContext('memutil', args.mem_warning, args.mem_critical),
             nagiosplugin.ScalarContext('gpuTemp', args.gputemp_warning, args.gputemp_critical)
